@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # Только бот, Redis используем внешний
+  bot:
+    build: .
+    container_name: courier-bot
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - YANDEX_API_KEY=${YANDEX_API_KEY}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_TTL=${REDIS_TTL:-86400}
+      - PORT=3000
+      - EXTERNAL_REDIS=true
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('redis').createClient({host: process.env.REDIS_HOST, port: process.env.REDIS_PORT}).ping()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - default
+      - host_network  # Для доступа к внешнему Redis
+
+networks:
+  host_network:
+    external: true
+    name: host  # Или имя вашей сети Docker
