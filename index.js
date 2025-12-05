@@ -52,25 +52,22 @@ async function saveUserSession(chatId, session) {
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
   
-  const welcomeMessage = `
-🚚 *Оптимизатор маршрутов курьеров*
+  const welcomeMessage = `🚚 ОПТИМИЗАТОР МАРШРУТОВ КУРЬЕРОВ
 
-📊 *Хранилище:* Redis
-📍 *Геокодирование:* ${process.env.YANDEX_API_KEY ? 'Яндекс API' : 'OpenStreetMap'}
+📊 Хранилище: Redis (порт 6380)
+📍 Геокодирование: Яндекс API + OpenStreetMap
 
-*Команды:*
+КОМАНДЫ:
 /add_address - Добавить адрес
 /add_courier - Добавить курьера  
 /optimize - Построить маршруты
 /status - Текущий статус
 /clear - Очистить данные
-/stats - Статистика Redis
 /help - Справка
 
-Данные сохраняются 24 часа.
-  `;
+Данные сохраняются 24 часа.`;
   
-  await bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'Markdown' });
+  await bot.sendMessage(chatId, welcomeMessage);
 });
 
 bot.onText(/\/add_address/, async (msg) => {
@@ -84,9 +81,9 @@ bot.onText(/\/add_address/, async (msg) => {
   await bot.sendMessage(chatId, 
     '📍 Введите адрес для добавления:\n\n' +
     'Примеры:\n' +
-    '• Москва, Тверская улица, 10\n' +
-    '• Санкт-Петербург, Невский проспект, 28\n' +
-    '• ул. Ленина, 15, Екатеринбург'
+    '- Москва, Тверская улица, 10\n' +
+    '- Санкт-Петербург, Невский проспект, 28\n' +
+    '- ул. Ленина, 15, Екатеринбург'
   );
 });
 
@@ -100,12 +97,12 @@ bot.onText(/\/add_courier/, async (msg) => {
   
   await bot.sendMessage(chatId,
     '👤 Введите данные курьера:\n\n' +
-    'Формат: *Имя, вместимость*\n\n' +
+    'Формат: Имя, вместимость\n\n' +
     'Примеры:\n' +
-    '• Иван Петров, 50\n' +
-    '• Анна Сидорова, 75\n' +
-    '• Алексей, 100'
-  , { parse_mode: 'Markdown' });
+    '- Иван Петров, 50\n' +
+    '- Анна Сидорова, 75\n' +
+    '- Алексей, 100'
+  );
 });
 
 bot.onText(/\/optimize/, async (msg) => {
@@ -135,13 +132,13 @@ bot.onText(/\/optimize/, async (msg) => {
       session.couriers.slice(0, optimalCount)
     );
     
-    let resultMessage = `📊 *Результаты оптимизации*\n\n`;
+    let resultMessage = `📊 РЕЗУЛЬТАТЫ ОПТИМИЗАЦИИ\n\n`;
     resultMessage += `• Адресов: ${session.addresses.length}\n`;
-    resultMessage += `• Курьеров: ${session.couriers.length}\n`;
-    resultMessage += `• Используется: ${optimalCount}\n\n`;
+    resultMessage += `• Курьеров доступно: ${session.couriers.length}\n`;
+    resultMessage += `• Оптимальное количество: ${optimalCount}\n\n`;
     
     if (optimalCount < session.couriers.length) {
-      resultMessage += `💡 *Экономия:* ${session.couriers.length - optimalCount} курьеров не нужны\n\n`;
+      resultMessage += `💡 Экономия: ${session.couriers.length - optimalCount} курьеров не нужны\n\n`;
     }
     
     const courierNames = Object.keys(assignments);
@@ -153,13 +150,14 @@ bot.onText(/\/optimize/, async (msg) => {
         const courier = session.couriers.find(c => c.name === courierName);
         const totalWeight = addresses.reduce((sum, a) => sum + a.weight, 0);
         
-        resultMessage += `*${courierName}*\n`;
+        resultMessage += `${courierName}\n`;
         resultMessage += `Заказов: ${addresses.length} | Нагрузка: ${totalWeight}/${courier?.capacity || 100}\n\n`;
         
         const route = routeOptimizer.nearestNeighborRoute(addresses);
         
         route.forEach((addr, idx) => {
-          resultMessage += `${idx + 1}. ${addr.address.substring(0, 30)}${addr.address.length > 30 ? '...' : ''}\n`;
+          const shortAddr = addr.address.length > 30 ? addr.address.substring(0, 30) + '...' : addr.address;
+          resultMessage += `${idx + 1}. ${shortAddr}\n`;
         });
         
         let totalDistance = 0;
@@ -167,12 +165,12 @@ bot.onText(/\/optimize/, async (msg) => {
           totalDistance += routeOptimizer.calculateDistance(route[i], route[i + 1]);
         }
         
-        resultMessage += `\n📏 *Расстояние:* ${(totalDistance / 1000).toFixed(1)} км\n`;
-        resultMessage += `⏱ *Время:* ~${Math.round(totalDistance / 1000 * 3)} мин\n`;
+        resultMessage += `\n📏 Расстояние: ${(totalDistance / 1000).toFixed(1)} км\n`;
+        resultMessage += `⏱ Время: ~${Math.round(totalDistance / 1000 * 3)} мин\n`;
         
         const mapUrl = geocoder.generateYandexMapsUrl(route, true);
         if (mapUrl) {
-          resultMessage += `[🗺 Маршрут на карте](${mapUrl})\n\n`;
+          resultMessage += `🗺 Маршрут: ${mapUrl}\n\n`;
         }
         
         resultMessage += `────\n\n`;
@@ -182,11 +180,10 @@ bot.onText(/\/optimize/, async (msg) => {
     const allPoints = session.addresses.map(a => ({ lat: a.lat, lon: a.lon }));
     const allPointsMapUrl = geocoder.generateYandexMapsUrl(allPoints);
     if (allPointsMapUrl) {
-      resultMessage += `[📍 Все точки на карте](${allPointsMapUrl})`;
+      resultMessage += `📍 Все точки: ${allPointsMapUrl}`;
     }
     
     await bot.sendMessage(chatId, resultMessage, {
-      parse_mode: 'Markdown',
       disable_web_page_preview: false
     });
     
@@ -200,63 +197,29 @@ bot.onText(/\/status/, async (msg) => {
   const chatId = msg.chat.id;
   const session = await getUserSession(chatId);
   
-  let statusMessage = `📊 *Ваш статус*\n\n`;
+  let statusMessage = `📊 ВАШ СТАТУС\n\n`;
   statusMessage += `📍 Адресов: ${session.addresses.length}\n`;
   statusMessage += `👤 Курьеров: ${session.couriers.length}\n`;
-  statusMessage += `🕐 Создано: ${session.createdAt.toLocaleString('ru-RU')}\n`;
-  statusMessage += `✏️ Обновлено: ${session.updatedAt.toLocaleString('ru-RU')}\n\n`;
+  statusMessage += `🕐 Создано: ${session.createdAt.toLocaleString('ru-RU')}\n\n`;
   
   if (session.addresses.length > 0) {
-    statusMessage += `*Последние адреса:*\n`;
+    statusMessage += `Последние адреса:\n`;
     session.addresses.slice(-3).forEach((addr, idx) => {
-      statusMessage += `${idx + 1}. ${addr.address.substring(0, 25)}${addr.address.length > 25 ? '...' : ''}\n`;
+      const shortAddr = addr.address.length > 25 ? addr.address.substring(0, 25) + '...' : addr.address;
+      statusMessage += `${idx + 1}. ${shortAddr}\n`;
     });
   }
   
   if (session.couriers.length > 0) {
-    statusMessage += `\n*Курьеры:*\n`;
+    statusMessage += `\nКурьеры:\n`;
     session.couriers.forEach((courier, idx) => {
       statusMessage += `${idx + 1}. ${courier.name} (${courier.capacity})\n`;
     });
   }
   
-  statusMessage += `\n💾 *Хранилище:* Redis`;
+  statusMessage += `\n💾 Хранилище: Redis:6380`;
   
-  await bot.sendMessage(chatId, statusMessage, { parse_mode: 'Markdown' });
-});
-
-bot.onText(/\/stats/, async (msg) => {
-  const chatId = msg.chat.id;
-  
-  if (!redisService.isConnected) {
-    await bot.sendMessage(chatId, '❌ Redis не подключен');
-    return;
-  }
-  
-  try {
-    const stats = await redisService.getStats();
-    
-    let statsMessage = `📈 *Статистика Redis*\n\n`;
-    statsMessage += `🔑 Всего ключей: ${stats?.totalKeys || 0}\n`;
-    statsMessage += `👤 Сессий пользователей: ${stats?.userSessions || 0}\n`;
-    statsMessage += `📍 Кэш адресов: ${stats?.geocodeCache || 0}\n`;
-    
-    if (stats?.memoryInfo) {
-      const memory = stats.memoryInfo.split('\n').find(l => l.startsWith('used_memory_human'));
-      if (memory) {
-        statsMessage += `💾 Используемая память: ${memory.split(':')[1].trim()}\n`;
-      }
-    }
-    
-    statsMessage += `\n⏱ TTL сессий: ${process.env.REDIS_TTL || 86400} сек\n`;
-    statsMessage += `✅ Статус: Подключен`;
-    
-    await bot.sendMessage(chatId, statsMessage, { parse_mode: 'Markdown' });
-    
-  } catch (error) {
-    console.error('Ошибка получения статистики:', error);
-    await bot.sendMessage(chatId, '❌ Ошибка получения статистики');
-  }
+  await bot.sendMessage(chatId, statusMessage);
 });
 
 bot.onText(/\/clear/, async (msg) => {
@@ -265,39 +228,36 @@ bot.onText(/\/clear/, async (msg) => {
   await redisService.deleteUserSession(chatId);
   
   await bot.sendMessage(chatId,
-    '✅ *Все данные очищены!*\n\n' +
+    '✅ ВСЕ ДАННЫЕ ОЧИЩЕНЫ\n\n' +
     'Сессия удалена из Redis.\n' +
     'Можете начать заново с /add_address'
-  , { parse_mode: 'Markdown' });
+  );
 });
 
 bot.onText(/\/help/, async (msg) => {
   const chatId = msg.chat.id;
   
-  const helpMessage = `
-📖 *Справка по командам*
+  const helpMessage = `📖 СПРАВКА ПО КОМАНДАМ
 
-*Основные команды:*
+ОСНОВНЫЕ КОМАНДЫ:
 /add_address - Добавить адрес доставки
 /add_courier - Добавить курьера
 /optimize - Построить оптимальные маршруты
 /status - Показать текущие данные
 /clear - Удалить все ваши данные
-/stats - Статистика Redis
 
-*Как использовать:*
+КАК ИСПОЛЬЗОВАТЬ:
 1. Добавьте несколько адресов через /add_address
 2. Добавьте курьеров через /add_courier
 3. Постройте маршруты через /optimize
 
-*Особенности:*
+ОСОБЕННОСТИ:
 • Данные хранятся в Redis 24 часа
 • Используется кэширование адресов
 • Автоматический расчет оптимального количества курьеров
-• Ссылки на Яндекс.Карты для маршрутов
-  `;
+• Ссылки на Яндекс.Карты для маршрутов`;
   
-  await bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
+  await bot.sendMessage(chatId, helpMessage);
 });
 
 // Обработка текстовых сообщений
@@ -331,14 +291,14 @@ bot.on('message', async (msg) => {
       
       await saveUserSession(chatId, session);
       
-      let response = `✅ *Адрес добавлен!*\n\n`;
-      response += `📌 *Адрес:* ${text}\n`;
-      response += `📍 *Координаты:* ${geocodeResult.lat.toFixed(6)}, ${geocodeResult.lon.toFixed(6)}\n`;
-      response += `⚖️ *Вес:* ${session.addresses[session.addresses.length - 1].weight}\n`;
-      response += `🗺 *Источник:* ${geocodeResult.source}\n\n`;
-      response += `📊 *Всего адресов:* ${session.addresses.length}`;
+      let response = `✅ АДРЕС ДОБАВЛЕН\n\n`;
+      response += `📌 Адрес: ${text}\n`;
+      response += `📍 Координаты: ${geocodeResult.lat.toFixed(6)}, ${geocodeResult.lon.toFixed(6)}\n`;
+      response += `⚖️ Вес: ${session.addresses[session.addresses.length - 1].weight}\n`;
+      response += `🗺 Источник: ${geocodeResult.source}\n\n`;
+      response += `📊 Всего адресов: ${session.addresses.length}`;
       
-      await bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
+      await bot.sendMessage(chatId, response);
       
     } catch (error) {
       console.error('Ошибка добавления адреса:', error);
@@ -376,19 +336,19 @@ bot.on('message', async (msg) => {
       await saveUserSession(chatId, session);
       
       await bot.sendMessage(chatId,
-        `✅ *Курьер добавлен!*\n\n` +
-        `👤 *Имя:* ${name}\n` +
-        `📦 *Вместимость:* ${capacityNum}\n\n` +
-        `📊 *Всего курьеров:* ${session.couriers.length}`
-      , { parse_mode: 'Markdown' });
+        `✅ КУРЬЕР ДОБАВЛЕН\n\n` +
+        `👤 Имя: ${name}\n` +
+        `📦 Вместимость: ${capacityNum}\n\n` +
+        `📊 Всего курьеров: ${session.couriers.length}`
+      );
       
     } catch (error) {
       console.error('Ошибка добавления курьера:', error);
       await bot.sendMessage(chatId,
         '❌ Неверный формат. Используйте: "Имя, вместимость"\n\n' +
         'Примеры:\n' +
-        '• Иван Петров, 50\n' +
-        '• Анна, 75'
+        '- Иван Петров, 50\n' +
+        '- Анна, 75'
       );
       session.waitingForCourier = true;
       await saveUserSession(chatId, session);
@@ -402,37 +362,21 @@ app.get('/health', async (req, res) => {
     status: 'OK',
     timestamp: new Date(),
     redis: redisService.isConnected ? 'connected' : 'disconnected',
-    sessions: (await redisService.getStats())?.userSessions || 0,
-    bot: 'running'
+    bot: 'running',
+    version: '1.0.0'
   });
 });
 
-app.get('/admin/stats', async (req, res) => {
-  if (req.query.secret !== process.env.ADMIN_SECRET) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-  
-  const stats = await redisService.getStats();
-  res.json(stats);
-});
-
-// Очистка при запуске
-setInterval(async () => {
-  if (redisService.isConnected) {
-    await redisService.cleanupOldSessions(24); // Очистка сессий старше 24 часов
-  }
-}, 3600000); // Каждый час
-
 // Инициализация
 async function init() {
-  console.log('🚀 Инициализация бота...');
+  console.log('🚀 Инициализация Courier Bot...');
   
   // Подключаем Redis
   const redisConnected = await redisService.connect();
   
   if (!redisConnected) {
-    console.warn('⚠️ Redis не подключен, используем память');
-    // Можно добавить fallback на память
+    console.error('❌ Критическая ошибка: Redis недоступен');
+    process.exit(1);
   }
   
   const PORT = process.env.PORT || 3000;

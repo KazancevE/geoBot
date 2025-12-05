@@ -8,16 +8,13 @@ class GeocoderService {
     this.osmUrl = 'https://nominatim.openstreetmap.org/search';
   }
 
-  // Умный геокодер с Redis кэшированием
   async geocode(address) {
-    // 1. Проверяем кэш Redis
     const cached = await redisService.getCachedGeocode(address);
     if (cached) {
-      console.log(`📦 Геокод из Redis кэша: ${address}`);
+      console.log(`📦 Геокод из кэша: ${address}`);
       return cached;
     }
 
-    // 2. Пробуем Яндекс API
     let result;
     if (this.yandexApiKey) {
       try {
@@ -34,7 +31,6 @@ class GeocoderService {
         }
       }
     } else {
-      // 3. Яндекс API нет, пробуем OSM
       try {
         result = await this.geocodeOSM(address);
         result.source = 'osm';
@@ -44,7 +40,6 @@ class GeocoderService {
       }
     }
 
-    // 4. Сохраняем в Redis кэш
     if (redisService.isConnected) {
       await redisService.cacheGeocode(address, result);
     }
@@ -126,7 +121,6 @@ class GeocoderService {
     };
   }
 
-  // Генерация URL для Яндекс.Карт
   generateYandexMapsUrl(points, route = false) {
     if (!points || points.length === 0) return null;
 

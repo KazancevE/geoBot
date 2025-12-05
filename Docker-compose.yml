@@ -1,36 +1,42 @@
 version: '3.8'
 
 services:
-  # Только бот, Redis используем внешний
+  redis:
+    image: redis:7-alpine
+    container_name: courier-bot-redis
+    ports:
+      - "6380:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   bot:
     build: .
     container_name: courier-bot
     ports:
-      - "${PORT:-3000}:3000"
+      - "3000:3000"
     environment:
-      - NODE_ENV=${NODE_ENV:-production}
+      - NODE_ENV=production
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - YANDEX_API_KEY=${YANDEX_API_KEY}
-      - REDIS_HOST=${REDIS_HOST:-redis}
-      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - REDIS_TTL=${REDIS_TTL:-86400}
+      - REDIS_TTL=86400
       - PORT=3000
-      - EXTERNAL_REDIS=true
     volumes:
       - ./logs:/app/logs
-      - ./data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('redis').createClient({host: process.env.REDIS_HOST, port: process.env.REDIS_PORT}).ping()"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - default
-      - host_network  # Для доступа к внешнему Redis
 
-networks:
-  host_network:
-    external: true
-    name: host  # Или имя вашей сети Docker
+volumes:
+  redis_data:

@@ -4,20 +4,16 @@ class RedisService {
   constructor() {
     this.client = null;
     this.isConnected = false;
-    this.ttl = parseInt(process.env.REDIS_TTL) || 86400; // 24 часа по умолчанию
+    this.ttl = parseInt(process.env.REDIS_TTL) || 86400;
   }
 
   async connect() {
     try {
       this.client = createClient({
         socket: {
-          host: process.env.REDIS_HOST || 'localhost',
+          host: process.env.REDIS_HOST || 'redis',
           port: process.env.REDIS_PORT || 6379,
           reconnectStrategy: (retries) => {
-            if (retries > 10) {
-              console.log('Too many retries on Redis. Connection terminated');
-              return new Error('Too many retries');
-            }
             return Math.min(retries * 100, 3000);
           }
         },
@@ -43,14 +39,13 @@ class RedisService {
     }
   }
 
-  // Сохранение сессии пользователя
   async saveUserSession(chatId, sessionData) {
     if (!this.isConnected) return null;
     
     try {
       const key = `user:${chatId}`;
       await this.client.set(key, JSON.stringify(sessionData), {
-        EX: this.ttl // Время жизни в секундах
+        EX: this.ttl
       });
       return true;
     } catch (error) {
@@ -59,7 +54,6 @@ class RedisService {
     }
   }
 
-  // Получение сессии пользователя
   async getUserSession(chatId) {
     if (!this.isConnected) return null;
     
@@ -73,7 +67,6 @@ class RedisService {
     }
   }
 
-  // Удаление сессии
   async deleteUserSession(chatId) {
     if (!this.isConnected) return false;
     
@@ -87,14 +80,13 @@ class RedisService {
     }
   }
 
-  // Кэширование геокодированных адресов
   async cacheGeocode(address, geocodeResult) {
     if (!this.isConnected) return false;
     
     try {
       const key = `geocode:${address.toLowerCase().trim()}`;
       await this.client.set(key, JSON.stringify(geocodeResult), {
-        EX: 604800 // 7 дней для кэша адресов
+        EX: 604800
       });
       return true;
     } catch (error) {
@@ -103,7 +95,6 @@ class RedisService {
     }
   }
 
-  // Получение из кэша
   async getCachedGeocode(address) {
     if (!this.isConnected) return null;
     
@@ -117,49 +108,6 @@ class RedisService {
     }
   }
 
-  // Статистика
-  async getStats() {
-    if (!this.isConnected) return null;
-    
-    try {
-      const keys = await this.client.keys('*');
-      const stats = {
-        totalKeys: keys.length,
-        userSessions: keys.filter(k => k.startsWith('user:')).length,
-        geocodeCache: keys.filter(k => k.startsWith('geocode:')).length,
-        memoryInfo: await this.client.info('memory')
-      };
-      return stats;
-    } catch (error) {
-      console.error('Ошибка получения статистики:', error);
-      return null;
-    }
-  }
-
-  // Очистка старых данных
-  async cleanupOldSessions(maxAgeHours = 24) {
-    if (!this.isConnected) return 0;
-    
-    try {
-      const keys = await this.client.keys('user:*');
-      let deleted = 0;
-      
-      for (const key of keys) {
-        const ttl = await this.client.ttl(key);
-        if (ttl < 0 || ttl > maxAgeHours * 3600) {
-          await this.client.del(key);
-          deleted++;
-        }
-      }
-      
-      console.log(`Очищено ${deleted} старых сессий`);
-      return deleted;
-    } catch (error) {
-      console.error('Ошибка очистки:', error);
-      return 0;
-    }
-  }
-
   async disconnect() {
     if (this.client && this.isConnected) {
       await this.client.quit();
@@ -169,5 +117,4 @@ class RedisService {
   }
 }
 
-// Singleton экземпляр
 module.exports = new RedisService();
