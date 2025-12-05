@@ -25,5 +25,5 @@ docker-compose up -d --build
 echo ""
 echo "✅ ЗАПУЩЕНО УСПЕШНО!"
 echo "📊 Redis: localhost:6380 (пароль: $REDIS_PASSWORD)"
-echo "🤖 Бот: http://localhost:3000/health"
+echo "🤖 Бот: http://localhost:3030/health"
 echo "📝 Логи: docker logs courier-bot -f"

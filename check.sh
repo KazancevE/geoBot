@@ -9,7 +9,7 @@ docker exec courier-bot-redis redis-cli -a $REDIS_PASSWORD ping
 # Проверка бота
 echo ""
 echo "2. Проверка бота..."
-curl -s http://localhost:3000/health
+curl -s http://localhost:3030/health
 
 # Статистика
 echo ""

@@ -21,7 +21,7 @@ services:
     build: .
     container_name: courier-bot
     ports:
-      - "3000:3000"
+      - "3030:3000"
     environment:
       - NODE_ENV=production
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
@@ -30,7 +30,7 @@ services:
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - REDIS_TTL=86400
-      - PORT=3000
+      - PORT=3030
     volumes:
       - ./logs:/app/logs
     depends_on:
